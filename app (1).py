@@ -6,10 +6,6 @@ import pandas as pd
 pipeline = joblib.load('model_pipeline.pkl')
 label_encoder = joblib.load('label_encoder.pkl')
 
-# Feature columns
-numerical_cols = ['age', 'fnlwgt', 'educational-num', 'capital-gain', 'capital-loss', 'hours-per-week']
-categorical_cols = ['workclass', 'marital-status', 'relationship', 'race', 'gender']
-
 # Prediction function
 def predict_income(age, fnlwgt, educational_num, capital_gain, capital_loss, hours_per_week,
                    workclass, marital_status, relationship, race, gender):
@@ -27,51 +23,59 @@ def predict_income(age, fnlwgt, educational_num, capital_gain, capital_loss, hou
             'race': race,
             'gender': gender
         }])
-        
-        print("Input DataFrame:")
-        print(input_data)
 
         pred_encoded = pipeline.predict(input_data)[0]
         pred_label = label_encoder.inverse_transform([pred_encoded])[0]
 
-        return f"Predicted Income Group: {pred_label}"
+        return f"🔎 **Predicted Income Group:** `{pred_label}`"
 
     except Exception as e:
-        # Print full error to Hugging Face logs
         import traceback
         traceback.print_exc()
-        return f"Error: {str(e)}"
+        return f"❌ Error: {str(e)}"
 
 
-# Gradio interface with sliders and dropdowns
-demo = gr.Interface(
-    fn=predict_income,
-    inputs=[
-        gr.Slider(minimum=17, maximum=90, step=1, label="Age"),
-        gr.Slider(minimum=10000, maximum=150000, step=1000, label="Final Weight (fnlwgt)"),
-        gr.Slider(minimum=1, maximum=16, step=1, label="Educational Number"),
-        gr.Slider(minimum=0, maximum=100000, step=500, label="Capital Gain"),
-        gr.Slider(minimum=0, maximum=5000, step=100, label="Capital Loss"),
-        gr.Slider(minimum=1, maximum=99, step=1, label="Hours per Week"),
-        gr.Dropdown(choices=[
-            'Private', 'Self-emp-not-inc', 'Self-emp-inc', 'Federal-gov', 'Local-gov',
-            'State-gov', 'Without-pay', 'Never-worked'
-        ], label="Workclass"),
-        gr.Dropdown(choices=[
-            'Married-civ-spouse', 'Divorced', 'Never-married', 'Separated', 'Widowed', 'Married-spouse-absent'
-        ], label="Marital Status"),
-        gr.Dropdown(choices=[
-            'Husband', 'Not-in-family', 'Own-child', 'Unmarried', 'Wife', 'Other-relative'
-        ], label="Relationship"),
-        gr.Dropdown(choices=[
-            'White', 'Black', 'Asian-Pac-Islander', 'Amer-Indian-Eskimo', 'Other'
-        ], label="Race"),
-        gr.Dropdown(choices=['Male', 'Female'], label="Gender")
-    ],
-    outputs="text",
-    title="Income Group Prediction",
-    description="Adjust the sliders and dropdowns to predict whether income is >50K or <=50K."
-)
+# App layout using Blocks
+with gr.Blocks(theme=gr.themes.Default(primary_hue="cyan")) as demo:
+
+    gr.Image(value="logo employee.png", show_label=False, interactive=False, height=100, width=100)
+
+
+    gr.Markdown("""
+    # 🧠 Employee Salary Prediction  
+    Predict whether an employee earns **>50K** or **<=50K** using an XGBoost model trained on census features.
+    """)
+
+    with gr.Row():
+        with gr.Column():
+            age = gr.Slider(17, 90, step=1, label="Age")
+            fnlwgt = gr.Slider(10000, 150000, step=1000, label="Final Weight (fnlwgt)")
+            educational_num = gr.Slider(1, 16, step=1, label="Educational Number")
+            capital_gain = gr.Slider(0, 100000, step=500, label="Capital Gain")
+            capital_loss = gr.Slider(0, 5000, step=100, label="Capital Loss")
+            hours_per_week = gr.Slider(1, 99, step=1, label="Hours per Week")
+
+        with gr.Column():
+            workclass = gr.Dropdown(
+                ['Private', 'Self-emp-not-inc', 'Self-emp-inc', 'Federal-gov', 'Local-gov',
+                 'State-gov', 'Without-pay', 'Never-worked'], label="Workclass")
+            marital_status = gr.Dropdown(
+                ['Married-civ-spouse', 'Divorced', 'Never-married', 'Separated', 'Widowed', 'Married-spouse-absent'],
+                label="Marital Status")
+            relationship = gr.Dropdown(
+                ['Husband', 'Not-in-family', 'Own-child', 'Unmarried', 'Wife', 'Other-relative'], label="Relationship")
+            race = gr.Dropdown(
+                ['White', 'Black', 'Asian-Pac-Islander', 'Amer-Indian-Eskimo', 'Other'], label="Race")
+            gender = gr.Dropdown(['Male', 'Female'], label="Gender")
+
+    predict_btn = gr.Button("🔍 Predict")
+    output_text = gr.Markdown()
+
+    predict_btn.click(fn=predict_income,
+                      inputs=[age, fnlwgt, educational_num, capital_gain, capital_loss, hours_per_week,
+                              workclass, marital_status, relationship, race, gender],
+                      outputs=output_text)
 
 if __name__ == "__main__":
     demo.launch()
+
